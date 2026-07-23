@@ -1,0 +1,8 @@
+# subjectlist.txt
+# Subject line(s) for the Receipt Email (Phase 3 & 4).
+# One subject per line. Lines starting with # are ignored.
+#
+# Use the placeholder {amount} where the invoice amount should appear.
+# It is replaced with the SAME random amount entered on the invoice
+# in Phase 2 (e.g. 983.89). {currency} is also available.
+Your receipt for {currency}{amount}

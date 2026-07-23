@@ -1,0 +1,5 @@
+# Item name.txt
+# Item name(s) used in the "New Item" popup Name field (Phase 2).
+# One name per line. Lines starting with # are ignored.
+# Set ITEM_NAME_SELECTION in config.py to "random" or "first".
+Norton

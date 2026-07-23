@@ -1,0 +1,19 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+
+# Playwright persistent browser profile (keeps you logged in locally)
+.xero_profile/
+
+# Runtime artifacts
+screenshots/*.png
+!screenshots/.gitkeep
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/

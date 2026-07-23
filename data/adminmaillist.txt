@@ -1,0 +1,6 @@
+# adminmaillist.txt
+# Contact email(s) used in the Invoice "Contact" field (Phase 2).
+# One email per line. Lines starting with # are ignored.
+# The first non-comment line is used by default; set CONTACT_SELECTION
+# in config.py to "random" to pick a random one instead.
+admin@example.com

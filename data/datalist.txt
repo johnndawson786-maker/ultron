@@ -1,0 +1,4 @@
+# datalist.txt
+# Recipient email(s) for the Receipt Email "To" field (Phase 3 & 4).
+# One email per line. Lines starting with # are ignored.
+customer@example.com

@@ -1,0 +1,15 @@
+# messagelist.txt
+# Message body/bodies for the Receipt Email (Phase 3 & 4).
+# Separate multiple messages with a line containing only "---".
+# Lines starting with # are ignored (only at the very top of the file).
+#
+# Use the placeholder {amount} where the invoice amount should appear.
+# It is replaced with the SAME random amount entered on the invoice
+# in Phase 2 (e.g. 983.89). {currency} is also available.
+# You can use multiple lines for a single message.
+Hello,
+
+Thank you for your payment. Please find attached your receipt for {currency}{amount}.
+
+Kind regards,
+Accounts Team
