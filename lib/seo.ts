@@ -50,7 +50,9 @@ export function buildMetadata({
     : undefined;
 
   return {
-    title: fullTitle,
+    // `absolute` bypasses the layout's title template so the brand suffix is
+    // never doubled (metaTitles already include the brand).
+    title: { absolute: fullTitle },
     description,
     alternates: {
       canonical: url,
