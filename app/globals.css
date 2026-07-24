@@ -1,0 +1,130 @@
+@import "tailwindcss";
+
+/* ------------------------------------------------------------------ *
+ * Design tokens — single source of truth.
+ * Defined as CSS custom properties, then exposed to Tailwind via @theme
+ * so utilities like `bg-primary` / `text-ink` resolve to these values.
+ * No default Tailwind palette is used.
+ * ------------------------------------------------------------------ */
+:root {
+  --ink: #0a1a33; /* headings, footer bg */
+  --ink-soft: #4a5b75; /* body text */
+  --primary: #2f5bff; /* brand blue */
+  --primary-dk: #1b3acc; /* hover */
+  --accent: #e85d1a; /* CTA orange — darkened from #FF6A2B to pass 4.5:1 on white */
+  --accent-raw: #ff6a2b; /* original bright orange for large text / on-dark use */
+  --signal: #10d6a6; /* mint — data, up arrows, checkmarks */
+  --cloud: #f4f7ff; /* section tint */
+  --line: #e2e9f7; /* hairlines, card borders */
+  --white: #ffffff;
+}
+
+@theme inline {
+  --color-ink: var(--ink);
+  --color-ink-soft: var(--ink-soft);
+  --color-primary: var(--primary);
+  --color-primary-dk: var(--primary-dk);
+  --color-accent: var(--accent);
+  --color-accent-raw: var(--accent-raw);
+  --color-signal: var(--signal);
+  --color-cloud: var(--cloud);
+  --color-line: var(--line);
+  --color-white: var(--white);
+
+  /* Font families are wired to the next/font CSS variables set in layout. */
+  --font-display: var(--font-sora);
+  --font-body: var(--font-inter);
+  --font-mono: var(--font-plex-mono);
+
+  /* Type scale: 14/16/17/20/24/32/40/56/72 */
+  --text-xs: 0.875rem;
+  --text-sm: 1rem;
+  --text-base: 1.0625rem; /* 17px */
+  --text-lg: 1.25rem;
+  --text-xl: 1.5rem;
+  --text-2xl: 2rem;
+  --text-3xl: 2.5rem;
+  --text-4xl: 3.5rem;
+  --text-5xl: 4.5rem;
+
+  --radius-card: 1rem;
+}
+
+/* ------------------------------------------------------------------ *
+ * Base — wrapped in @layer base so Tailwind utility classes (which live
+ * in @layer utilities) can override element defaults like heading colour.
+ * ------------------------------------------------------------------ */
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    background: var(--white);
+    color: var(--ink-soft);
+    font-family: var(--font-body), ui-sans-serif, system-ui, sans-serif;
+    font-size: var(--text-base);
+    line-height: 1.7;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-family: var(--font-display), ui-sans-serif, system-ui, sans-serif;
+    color: var(--ink);
+    letter-spacing: -0.02em;
+    line-height: 1.1;
+    font-weight: 700;
+  }
+}
+
+/* Body measure cap for readable prose blocks. */
+.measure {
+  max-width: 72ch;
+}
+
+/* Monospace utility / data eyebrows. */
+.mono-eyebrow {
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: var(--text-xs);
+}
+
+/* Visible focus rings everywhere. */
+:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* Dot-grid overlay used on the hero. */
+.dot-grid {
+  background-image: radial-gradient(
+    rgba(255, 255, 255, 0.14) 1px,
+    transparent 1px
+  );
+  background-size: 22px 22px;
+}
+
+.hero-gradient {
+  background: linear-gradient(135deg, #0a1a33 0%, #1b3acc 55%, #2f5bff 100%);
+}
+
+/* ------------------------------------------------------------------ *
+ * Motion — respect reduced-motion by disabling transforms/animation.
+ * ------------------------------------------------------------------ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}

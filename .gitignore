@@ -17,3 +17,11 @@ screenshots/*.png
 .DS_Store
 .idea/
 .vscode/
+
+# Node / Next.js
+node_modules/
+.next/
+next-env.d.ts
+*.tsbuildinfo
+.vercel/
+.env*.local
