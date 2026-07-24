@@ -23,12 +23,15 @@ export function Header() {
   }, []);
 
   const solid = scrolled || mobileOpen;
-  const linkColor = solid ? "text-ink" : "text-white";
+  // Light hero → dark text at all times; background fades from clear to solid.
+  const linkColor = "text-ink";
 
   return (
     <header
-      className={`fixed inset-x-0 top-0 z-50 transition-colors duration-200 ${
-        solid ? "bg-white shadow-[0_1px_0_var(--line)]" : "bg-transparent"
+      className={`fixed inset-x-0 top-0 z-50 transition-all duration-300 ${
+        solid
+          ? "bg-white/85 shadow-[0_1px_0_var(--line)] backdrop-blur-md"
+          : "bg-transparent"
       }`}
     >
       <div className="mx-auto flex max-w-7xl items-center justify-between gap-6 px-5 py-4 lg:px-8">

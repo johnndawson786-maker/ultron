@@ -9,11 +9,12 @@ const base =
 const sizes = "px-6 py-3 text-[1.0625rem] leading-none";
 
 const variants: Record<Variant, string> = {
-  // Orange CTA fill uses the darkened --accent so white label text clears 4.5:1.
-  primary: "bg-accent text-white hover:bg-[#c94e12]",
-  secondary: "bg-primary text-white hover:bg-primary-dk",
-  ghost:
-    "bg-transparent text-ink border border-line hover:border-primary hover:text-primary",
+  // Blue is the single primary accent in the clean/light scheme.
+  primary:
+    "bg-primary text-white hover:bg-primary-dk shadow-[0_6px_16px_rgba(47,91,255,0.25)]",
+  secondary:
+    "bg-white text-ink border border-line hover:border-primary hover:text-primary",
+  ghost: "bg-transparent text-ink hover:text-primary",
 };
 
 type ButtonAsLink = {

@@ -1,6 +1,11 @@
 import type { Metadata } from "next";
 import { Hero } from "@/components/sections/Hero";
 import { RankTicker } from "@/components/sections/RankTicker";
+import { ServicesGrid } from "@/components/sections/ServicesGrid";
+import { StatsStrip } from "@/components/sections/StatsStrip";
+import { WhyUs } from "@/components/sections/WhyUs";
+import { ProcessSteps } from "@/components/sections/ProcessSteps";
+import { CTABand } from "@/components/sections/CTABand";
 import { buildMetadata } from "@/lib/seo";
 import { site } from "@/content/site";
 
@@ -18,14 +23,11 @@ export default function HomePage() {
     <>
       <Hero />
       <RankTicker />
-
-      {/* Remaining home sections are built in Phase 2. */}
-      <section className="mx-auto max-w-7xl px-5 py-24 lg:px-8">
-        <p className="mono-eyebrow text-ink-soft">
-          Phase 1 preview — home hero &amp; rank ticker. Full home page sections
-          land in Phase 2.
-        </p>
-      </section>
+      <ServicesGrid />
+      <StatsStrip />
+      <WhyUs />
+      <ProcessSteps />
+      <CTABand />
     </>
   );
 }
