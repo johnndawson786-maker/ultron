@@ -192,6 +192,56 @@ def test_agent_unknown_tool_is_reported():
         assert "Unknown tool" in res.steps[0].observation
 
 
+# --- journal (the "tell me everything it did" record) --------------------
+
+
+def test_journal_records_and_reads():
+    from operator_agent.journal import Journal, format_entries
+
+    with tempfile.TemporaryDirectory() as tmp:
+        j = Journal(Path(tmp) / "activity.jsonl")
+        j.event("task", goal="learn X")
+        j.event("step", action="web_search", args={"query": "X"}, observation="found stuff")
+        j.event("finish", answer="done")
+        entries = j.read()
+        assert [e["kind"] for e in entries] == ["task", "step", "finish"]
+        rendered = format_entries(entries)
+        assert "TASK: learn X" in rendered and "web_search" in rendered
+
+
+def test_agent_writes_to_journal():
+    from operator_agent.journal import Journal
+
+    with tempfile.TemporaryDirectory() as tmp:
+        cfg = _cfg(tmp, autonomy="auto")
+        tools = Tools(cfg, Memory(cfg), safety.auto_approver)
+        registry, _ = build_registry(tools)
+        j = Journal(cfg.log_file)
+        llm = ScriptedLLM([
+            '{"thought":"t","action":"sysinfo","args":{}}',
+            '{"thought":"done","action":"finish","args":{"answer":"OK"}}',
+        ])
+        agent = Agent(llm, registry, "sys", max_steps=5, budget_seconds=60, journal=j)
+        agent.run("g")
+        kinds = [e["kind"] for e in j.read()]
+        assert "task" in kinds and "step" in kinds and "finish" in kinds
+
+
+def test_defaults_are_auto_and_active_enabled():
+    # Reflects the user's chosen answers: fully auto + active testing available.
+    with tempfile.TemporaryDirectory() as tmp:
+        cfg = _cfg(tmp)
+        assert cfg.autonomy == "auto"
+        assert cfg.allow_active_testing is True
+
+
+def test_passive_recon_bad_input():
+    with tempfile.TemporaryDirectory() as tmp:
+        cfg = _cfg(tmp)
+        t = Tools(cfg, Memory(cfg), safety.auto_approver)
+        assert "error" in t.passive_recon(domain="not-a-domain").lower()
+
+
 if __name__ == "__main__":
     for name, fn in sorted(globals().items()):
         if name.startswith("test_") and callable(fn):

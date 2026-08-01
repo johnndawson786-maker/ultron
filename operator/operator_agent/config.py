@@ -52,13 +52,14 @@ class Config:
     budget_seconds: int = 900      # wall-clock budget per task (default 15 min)
 
     # --- autonomy / safety ---
-    # "approval" = ask before every shell command (default, safest)
+    # "auto"     = run without prompting (default; everything is logged so you
+    #              can always ask "what did you do" via `operator log`)
+    # "approval" = ask before every shell command / file write
     # "semi"     = read-only tools run freely, ask before shell/changes
-    # "auto"     = run without prompting (use only when you trust the setup)
-    autonomy: str = "approval"
-    # Active security testing is OFF by default (learn + recon only). Turning it
-    # on still requires every target to be in the scope allowlist.
-    allow_active_testing: bool = False
+    autonomy: str = "auto"
+    # Active security testing is available, but every active scan still requires
+    # the target to be in your authorized scope allowlist (legal-by-design).
+    allow_active_testing: bool = True
 
     # --- storage ---
     data_dir: Path = Path(os.path.expanduser("~/.operator"))
@@ -73,8 +74,8 @@ class Config:
             request_timeout=_i("OPERATOR_TIMEOUT", 300),
             max_steps=_i("OPERATOR_MAX_STEPS", 20),
             budget_seconds=_i("OPERATOR_BUDGET_SECONDS", 900),
-            autonomy=os.getenv("OPERATOR_AUTONOMY", "approval").strip().lower(),
-            allow_active_testing=_b("OPERATOR_ALLOW_ACTIVE_TESTING", False),
+            autonomy=os.getenv("OPERATOR_AUTONOMY", "auto").strip().lower(),
+            allow_active_testing=_b("OPERATOR_ALLOW_ACTIVE_TESTING", True),
             data_dir=Path(
                 os.path.expanduser(os.getenv("OPERATOR_DATA_DIR", "~/.operator"))
             ),
@@ -103,6 +104,10 @@ class Config:
     @property
     def facts_file(self) -> Path:
         return self.data_dir / "facts.jsonl"
+
+    @property
+    def log_file(self) -> Path:
+        return self.data_dir / "activity.jsonl"
 
     def ensure_dirs(self) -> None:
         self.data_dir.mkdir(parents=True, exist_ok=True)

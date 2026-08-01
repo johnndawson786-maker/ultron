@@ -24,10 +24,15 @@ OpenAI-compatible API. **Zero Python dependencies** — standard library only.
   runnable version.
 - ❌ **"See my desktop"** doesn't apply to a headless VPS — there's no screen.
   Here "seeing" = reading command output, files, logs, and fetched web pages.
-- 🔒 **Bug bounty = authorized hacking.** Active scanning is **off by default**.
-  Even when you enable it, Operator only touches hosts in your **scope
-  allowlist**. Staying in scope is what keeps this legal — that guardrail is
-  built in and not optional.
+- 🔒 **Bug bounty = authorized hacking.** Active scanning is **enabled**, but it
+  only ever touches hosts in your **scope allowlist** (empty until you add
+  targets). Passive OSINT (Certificate Transparency, DNS) works on any domain.
+  Staying in scope is what keeps this legal — that guardrail is built in and not
+  optional.
+- 🤖 **It runs fully autonomously by default** (acts without asking) — and
+  **records everything** it does. Run `operator log` any time to see exactly
+  which tools and commands it ran and what came back. That accountability is the
+  trade-off that makes full autonomy safe to use.
 
 ---
 
@@ -77,10 +82,16 @@ Runs the full loop with approval-gated tools. Example goals: audit a config,
 summarise logs, set up a tool, research-and-write a script.
 
 ### `recon "<goal>"` — bug-bounty mentor
-Teaches vulnerability classes and methodology, does passive research, and (only
-if you enable active testing for authorized scope) helps drive recon. It always
-explains the *why*: how to spot a bug, confirm it safely, report it, and how
-it's fixed — so you actually build the skill.
+Teaches vulnerability classes and methodology and does real **passive recon** out
+of the box: the built-in `passive_recon` tool pulls subdomains from Certificate
+Transparency (crt.sh) and resolves DNS for any domain — pure OSINT, no attack
+traffic. Active scanners (nmap/nuclei/…) run only against hosts in your scope
+allowlist. It always explains the *why*: how to spot a bug, confirm it safely,
+report it, and how it's fixed — so you actually build the skill.
+
+```bash
+operator recon "passive recon on example.com and teach me what the subdomains reveal"
+```
 
 ### `chat` — step-by-step guidance
 Conversational mentor with the Operator mindset for quick "what do I do next?"
@@ -102,9 +113,17 @@ Set `OPERATOR_AUTONOMY`:
 
 | Level | Behavior |
 |---|---|
-| `approval` *(default)* | Asks before every shell command / file write. You stay in control. |
+| `auto` *(default)* | Runs without prompting. Everything is journaled — see it with `operator log`. |
+| `approval` | Asks before every shell command / file write. Maximum control. |
 | `semi` | Read-only research runs freely; still asks before shell/writes. |
-| `auto` | Runs without prompting. Use only when you fully trust the setup. |
+
+**See what it did:** because `auto` acts on its own, every task, tool call,
+command, and result is written to `~/.operator/activity.jsonl`.
+
+```bash
+operator log              # full activity, most recent last
+operator log --last 10    # just the last 10 entries
+```
 
 Always-on protections regardless of level:
 - **Destructive commands are hard-blocked** (`rm -rf /`, fork bombs, disk wipes,
@@ -118,9 +137,12 @@ Always-on protections regardless of level:
 ```bash
 operator scope add yourprogram.example.com     # only hosts you may test
 operator scope list
-# then, deliberately:
-OPERATOR_ALLOW_ACTIVE_TESTING=true operator recon "recon api.yourprogram.example.com"
+# active testing is already enabled; the scope entry is what unlocks it:
+operator recon "recon api.yourprogram.example.com"
 ```
+
+To turn active testing fully off (mentor + passive OSINT only), set
+`OPERATOR_ALLOW_ACTIVE_TESTING=false`.
 
 ---
 
@@ -166,9 +188,10 @@ operator/
 │   ├── config.py
 │   ├── llm.py          # pluggable local/OpenAI-compatible client
 │   ├── agent.py        # the plan→act→observe loop + JSON action parser
-│   ├── tools.py        # web_search/web_read/shell/files/memory/sysinfo
+│   ├── tools.py        # web_search/web_read/shell/files/memory/passive_recon/sysinfo
 │   ├── safety.py       # destructive-command block, approval, scope allowlist
 │   ├── memory.py       # persistent facts + knowledge-base notes
+│   ├── journal.py      # activity log — the "what did you do" record
 │   ├── prompts.py      # operator / learn / recon mindsets
 │   └── learn.py        # research-in-a-time-budget → note + quiz
 └── tests/

@@ -12,6 +12,7 @@ from pathlib import Path
 
 from .agent import Agent, Emitter, RunResult
 from .config import Config
+from .journal import Journal
 from .llm import LLM
 from .memory import Memory
 from .prompts import learn_system
@@ -35,6 +36,7 @@ def learn_topic(
     topic: str,
     minutes: int,
     emit: Emitter | None = None,
+    journal: Journal | None = None,
 ) -> LearnResult:
     budget = max(60, minutes * 60)
     agent = Agent(
@@ -44,6 +46,7 @@ def learn_topic(
         max_steps=cfg.max_steps,
         budget_seconds=budget,
         emit=emit,
+        journal=journal,
     )
     goal = (
         f"Research the topic: '{topic}'. Check what you already know with recall, then "

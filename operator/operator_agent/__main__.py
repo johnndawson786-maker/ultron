@@ -6,6 +6,7 @@
   operator recon "goal / target"        # bug-bounty mentor (authorized only)
   operator chat                         # step-by-step guidance (conversational)
   operator idle                         # work the curiosity backlog
+  operator log [--last N]               # see exactly what the agent did
   operator scope add <host> | list      # manage authorized-testing scope
   operator notes list | show <title>    # browse the knowledge base
 """
@@ -17,6 +18,7 @@ import sys
 
 from .agent import Agent
 from .config import Config
+from .journal import Journal, format_entries
 from .learn import learn_topic
 from .llm import ChatLLM, LLMError
 from .memory import Memory
@@ -50,7 +52,17 @@ def _build(cfg: Config):
     approver = auto_approver if cfg.autonomy == "auto" else cli_approver
     tools = Tools(cfg, memory, approver)
     registry, specs = build_registry(tools)
-    return llm, memory, tools, registry, specs
+    journal = Journal(cfg.log_file)
+    return llm, memory, tools, registry, specs, journal
+
+
+def _autonomy_banner(cfg: Config) -> None:
+    if cfg.autonomy == "auto":
+        print(
+            _c("2", "[autonomy: AUTO — acting without prompts. Everything is logged; "
+            "run `operator log` to see exactly what it did.]"),
+            file=sys.stderr,
+        )
 
 
 def _preflight(cfg: Config, llm: ChatLLM) -> None:
@@ -74,7 +86,7 @@ def _preflight(cfg: Config, llm: ChatLLM) -> None:
 
 
 def cmd_sysinfo(cfg, args) -> int:
-    _, _, tools, _, _ = _build(cfg)
+    _, _, tools, _, _, _ = _build(cfg)
     print(tools.sysinfo())
     return 0
 
@@ -82,10 +94,11 @@ def cmd_sysinfo(cfg, args) -> int:
 def cmd_task(cfg, args) -> int:
     if args.minutes:
         cfg.budget_seconds = args.minutes * 60
-    llm, _, _, registry, specs = _build(cfg)
+    llm, _, _, registry, specs, journal = _build(cfg)
     _preflight(cfg, llm)
+    _autonomy_banner(cfg)
     agent = Agent(llm, registry, operator_system(specs), cfg.max_steps,
-                  cfg.budget_seconds, _emitter(args.verbose))
+                  cfg.budget_seconds, _emitter(args.verbose), journal=journal)
     print(_c("1", f"\nTask: {args.goal}\n"), file=sys.stderr)
     try:
         result = agent.run(args.goal)
@@ -99,13 +112,18 @@ def cmd_task(cfg, args) -> int:
 
 
 def cmd_recon(cfg, args) -> int:
-    llm, _, _, registry, specs = _build(cfg)
+    llm, _, _, registry, specs, journal = _build(cfg)
     _preflight(cfg, llm)
+    _autonomy_banner(cfg)
     agent = Agent(llm, registry, recon_system(specs), cfg.max_steps,
-                  cfg.budget_seconds, _emitter(args.verbose))
-    if not cfg.allow_active_testing:
-        print(_c("2", "[active testing OFF — mentor/passive mode. Enable with "
-              "OPERATOR_ALLOW_ACTIVE_TESTING=true + `operator scope add`]"), file=sys.stderr)
+                  cfg.budget_seconds, _emitter(args.verbose), journal=journal)
+    scope_hosts = Scope(cfg.scope_file).hosts()
+    if cfg.allow_active_testing:
+        msg = ("[active testing ENABLED — but active scans only run against hosts "
+               "in your scope allowlist: " + (", ".join(scope_hosts) or "(empty — add with `operator scope add`)") + "]")
+    else:
+        msg = "[active testing OFF — mentor/passive mode]"
+    print(_c("2", msg), file=sys.stderr)
     try:
         result = agent.run(args.goal)
     except LLMError as exc:
@@ -117,12 +135,12 @@ def cmd_recon(cfg, args) -> int:
 
 
 def cmd_learn(cfg, args) -> int:
-    llm, memory, _, registry, specs = _build(cfg)
+    llm, memory, _, registry, specs, journal = _build(cfg)
     _preflight(cfg, llm)
     print(_c("1", f"\nLearning '{args.topic}' for up to {args.minutes} min...\n"), file=sys.stderr)
     try:
         res = learn_topic(llm, cfg, memory, registry, specs, args.topic,
-                          args.minutes, _emitter(args.verbose))
+                          args.minutes, _emitter(args.verbose), journal=journal)
     except LLMError as exc:
         print(_c("31", f"model error: {exc}"), file=sys.stderr)
         return 1
@@ -134,7 +152,7 @@ def cmd_learn(cfg, args) -> int:
 
 
 def cmd_chat(cfg, args) -> int:
-    llm, _, _, _, specs = _build(cfg)
+    llm, _, _, _, specs, _ = _build(cfg)
     _preflight(cfg, llm)
     print(_c("1", "Operator chat — step-by-step guidance. Ctrl-D to exit.\n"))
     history = [{"role": "system", "content": operator_system(specs)}]
@@ -159,8 +177,9 @@ def cmd_chat(cfg, args) -> int:
 
 
 def cmd_idle(cfg, args) -> int:
-    llm, memory, _, registry, specs = _build(cfg)
+    llm, memory, _, registry, specs, journal = _build(cfg)
     _preflight(cfg, llm)
+    _autonomy_banner(cfg)
     backlog = cfg.backlog_file
     if not backlog.exists() or not backlog.read_text().strip():
         print(_c("33", f"Backlog is empty. Add topics (one per line) to {backlog}"))
@@ -171,7 +190,7 @@ def cmd_idle(cfg, args) -> int:
         print(_c("1", f"\n[curiosity] learning: {topic}"), file=sys.stderr)
         try:
             res = learn_topic(llm, cfg, memory, registry, specs, topic,
-                              args.minutes, _emitter(args.verbose))
+                              args.minutes, _emitter(args.verbose), journal=journal)
             print(_c("32", f"  ✓ saved {res.note_path.name}"), file=sys.stderr)
             done += 1
             lines.remove(topic)
@@ -194,6 +213,13 @@ def cmd_scope(cfg, args) -> int:
     else:
         hosts = scope.hosts()
         print("\n".join(hosts) if hosts else "(scope allowlist is empty)")
+    return 0
+
+
+def cmd_log(cfg, args) -> int:
+    journal = Journal(cfg.log_file)
+    entries = journal.read(last=args.last)
+    print(format_entries(entries))
     return 0
 
 
@@ -232,6 +258,9 @@ def main(argv: list[str] | None = None) -> int:
 
     sub.add_parser("chat", help="step-by-step guidance")
 
+    plog = sub.add_parser("log", help="show what the agent has done (activity journal)")
+    plog.add_argument("--last", type=int, default=40, help="how many recent entries")
+
     pi = sub.add_parser("idle", help="work the curiosity backlog")
     pi.add_argument("--minutes", type=int, default=15)
     pi.add_argument("--max", type=int, default=0, help="max items this run")
@@ -252,7 +281,7 @@ def main(argv: list[str] | None = None) -> int:
     dispatch = {
         "sysinfo": cmd_sysinfo, "task": cmd_task, "recon": cmd_recon,
         "learn": cmd_learn, "chat": cmd_chat, "idle": cmd_idle,
-        "scope": cmd_scope, "notes": cmd_notes,
+        "scope": cmd_scope, "notes": cmd_notes, "log": cmd_log,
     }
     fn = dispatch.get(args.cmd)
     if fn is None:

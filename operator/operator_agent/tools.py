@@ -7,9 +7,11 @@ registry also produces the tool documentation injected into the system prompt.
 from __future__ import annotations
 
 import html
+import json
 import platform
 import re
 import shutil
+import socket
 import subprocess
 import urllib.parse
 import urllib.request
@@ -156,6 +158,56 @@ class Tools:
         path = self.memory.write_note(title, content)
         return f"saved knowledge-base note: {path}"
 
+    # --- passive recon (OSINT — no attack traffic) -----------------------
+
+    def passive_recon(self, domain: str = "", **_) -> str:
+        """Passive OSINT: Certificate Transparency subdomains + DNS resolution.
+
+        This is safe/legal on any domain — it only reads public data (CT logs,
+        DNS) and sends no attack traffic. Active scanning (nmap/nuclei/…) is a
+        separate, scope-gated path via the shell tool.
+        """
+        domain = re.sub(r"^https?://", "", domain.strip().lower()).strip("/").split("/")[0]
+        if not domain or "." not in domain:
+            return "passive_recon error: provide a domain like example.com"
+
+        subs: set[str] = set()
+        try:
+            url = f"https://crt.sh/?q=%25.{urllib.parse.quote(domain)}&output=json"
+            req = urllib.request.Request(url, headers={"User-Agent": _UA})
+            with urllib.request.urlopen(req, timeout=25) as resp:
+                data = json.loads(resp.read().decode("utf-8", errors="replace") or "[]")
+            for row in data:
+                for name in str(row.get("name_value", "")).splitlines():
+                    name = name.strip().lstrip("*.").lower()
+                    if name.endswith(domain):
+                        subs.add(name)
+        except Exception as exc:  # noqa: BLE001
+            subs_note = f"(crt.sh lookup failed: {exc})"
+        else:
+            subs_note = ""
+
+        lines = [f"Passive recon for {domain}"]
+        if subs_note:
+            lines.append(subs_note)
+        shown = sorted(subs)[:50]
+        lines.append(f"\nSubdomains from Certificate Transparency ({len(subs)} found, showing {len(shown)}):")
+        lines.extend("  " + s for s in shown)
+
+        lines.append("\nDNS resolution (first 12):")
+        for host in ([domain] + [s for s in shown if s != domain])[:12]:
+            try:
+                ip = socket.gethostbyname(host)
+                lines.append(f"  {host} -> {ip}")
+            except Exception:  # noqa: BLE001
+                lines.append(f"  {host} -> (no A record / unresolved)")
+
+        lines.append(
+            "\nNote: this is passive OSINT only. For active scanning add the target "
+            "with `operator scope add <host>` (only if you're authorized)."
+        )
+        return _truncate("\n".join(lines))
+
     # --- system ----------------------------------------------------------
 
     def sysinfo(self, **_) -> str:
@@ -199,6 +251,7 @@ def build_registry(tools: Tools) -> tuple[dict, list[ToolSpec]]:
         ToolSpec("remember", "text, tags?", "Store a durable fact in memory."),
         ToolSpec("recall", "query", "Search your memory and knowledge base."),
         ToolSpec("save_note", "title, content", "Save a structured knowledge-base note."),
+        ToolSpec("passive_recon", "domain", "Passive OSINT on a domain: Certificate Transparency subdomains + DNS (no attack traffic)."),
         ToolSpec("sysinfo", "(none)", "Report facts about this VPS (OS, CPU, mem, disk, installed tools)."),
     ]
     registry = {
@@ -210,6 +263,7 @@ def build_registry(tools: Tools) -> tuple[dict, list[ToolSpec]]:
         "remember": tools.remember,
         "recall": tools.recall,
         "save_note": tools.save_note,
+        "passive_recon": tools.passive_recon,
         "sysinfo": tools.sysinfo,
     }
     return registry, specs

@@ -13,6 +13,7 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any
 
+from .journal import Journal
 from .llm import LLM
 
 
@@ -83,6 +84,7 @@ class Agent:
         max_steps: int = 20,
         budget_seconds: int = 900,
         emit: Emitter | None = None,
+        journal: Journal | None = None,
     ) -> None:
         self.llm = llm
         self.registry = registry
@@ -90,6 +92,7 @@ class Agent:
         self.max_steps = max_steps
         self.budget_seconds = budget_seconds
         self.emit = emit or (lambda kind, payload: None)
+        self.journal = journal
 
     def run(self, goal: str) -> RunResult:
         messages: list[dict[str, Any]] = [
@@ -98,6 +101,8 @@ class Agent:
         ]
         steps: list[Step] = []
         deadline = time.monotonic() + self.budget_seconds
+        if self.journal:
+            self.journal.event("task", goal=goal)
 
         for _ in range(self.max_steps):
             if time.monotonic() > deadline:
@@ -123,6 +128,8 @@ class Agent:
 
             if name == "finish":
                 answer = str(args.get("answer", "")).strip() or "(no answer provided)"
+                if self.journal:
+                    self.journal.event("finish", answer=answer)
                 return RunResult(answer=answer, steps=steps, stopped_reason="finished")
 
             self.emit("action", f"{name}({_fmt_args(args)})")
@@ -138,6 +145,8 @@ class Agent:
                     observation = f"{name} raised: {exc}"
 
             self.emit("observation", observation)
+            if self.journal:
+                self.journal.event("step", action=name, args=args, observation=observation[:2000])
             steps.append(Step(thought, name, args, observation))
             messages.append({"role": "assistant", "content": json.dumps(action)})
             messages.append({"role": "user", "content": f"Observation:\n{observation}"})
@@ -155,6 +164,9 @@ class Agent:
             answer = self.llm.complete(messages).strip()
         except Exception as exc:  # noqa: BLE001
             answer = f"(could not synthesize final answer: {exc})"
+        if self.journal:
+            self.journal.event("stopped", reason=reason)
+            self.journal.event("finish", answer=answer)
         return RunResult(answer=answer or "(no answer)", steps=steps, stopped_reason=reason)
 
 
